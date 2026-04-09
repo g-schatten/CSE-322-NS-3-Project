@@ -25,8 +25,14 @@ RESULTS_DIR="network_results"
 mkdir -p "$RESULTS_DIR"
 CSV_FILE="$RESULTS_DIR/all_results.csv"
 
+# Prefer project virtualenv for plotting dependencies if available
+PYTHON_BIN="python3"
+if [ -x ".venv/bin/python" ]; then
+    PYTHON_BIN=".venv/bin/python"
+fi
+
 # Initialize CSV
-echo "NetworkType,NumNodes,NumFlows,PktPerSec,NodeSpeed,CoverageArea,Throughput(Mbps),Delay(ms),PDR,DRR" > "$CSV_FILE"
+echo "NetworkType,TcpVariant,NumNodes,NumFlows,PktPerSec,NodeSpeed,CoverageMultiplier,ThroughputMbps,DelayMs,PDR,DRR,EnergyJ" > "$CSV_FILE"
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║  RTT-Aware CUBIC: Comprehensive Network Evaluation              ║${NC}"
@@ -59,7 +65,7 @@ for net_type in "${NETWORK_TYPES[@]}"; do
             for pkt_rate in "${PKT_RATES[@]}"; do
                 if [ "$net_type" = "wireless" ]; then
                     for speed in "${SPEEDS[@]}"; do
-                        ((SIM_COUNT++))
+                        ((SIM_COUNT+=1))
                         echo -ne "${BLUE}[$SIM_COUNT/$TOTAL_SIMS]${NC} wireless | N=$num_nodes F=$num_flows PPS=$pkt_rate SPD=${speed}m/s... "
 
                         timeout 120 ./ns3 run "scratch/cubic-networks-simulation \
@@ -70,10 +76,10 @@ for net_type in "${NETWORK_TYPES[@]}"; do
                             --nodeSpeed=$speed" \
                             > /tmp/sim.log 2>&1
 
-                        # Extract results
-                        if [ -f "results_${net_type}_${num_nodes}n_${num_flows}f_${pkt_rate}pps.csv" ]; then
-                            tail -n 1 "results_${net_type}_${num_nodes}n_${num_flows}f_${pkt_rate}pps.csv" >> "$CSV_FILE"
-                            rm "results_${net_type}_${num_nodes}n_${num_flows}f_${pkt_rate}pps.csv"
+                        # Extract simulator row from stdout log (format: CSV_ROW,...)
+                        csv_row=$(grep '^CSV_ROW,' /tmp/sim.log | tail -n 1 | sed 's/^CSV_ROW,//')
+                        if [ -n "$csv_row" ]; then
+                            echo "$csv_row" >> "$CSV_FILE"
                             echo -e "${GREEN}✓${NC}"
                         else
                             echo -e "${YELLOW}⚠${NC} (no output)"
@@ -81,7 +87,7 @@ for net_type in "${NETWORK_TYPES[@]}"; do
                     done
                 else
                     for cov in "${COVERAGE[@]}"; do
-                        ((SIM_COUNT++))
+                        ((SIM_COUNT+=1))
                         echo -ne "${BLUE}[$SIM_COUNT/$TOTAL_SIMS]${NC} wired    | N=$num_nodes F=$num_flows PPS=$pkt_rate COV=${cov}x... "
 
                         timeout 120 ./ns3 run "scratch/cubic-networks-simulation \
@@ -92,10 +98,10 @@ for net_type in "${NETWORK_TYPES[@]}"; do
                             --coverageMultiplier=$cov" \
                             > /tmp/sim.log 2>&1
 
-                        # Extract results
-                        if [ -f "results_${net_type}_${num_nodes}n_${num_flows}f_${pkt_rate}pps.csv" ]; then
-                            tail -n 1 "results_${net_type}_${num_nodes}n_${num_flows}f_${pkt_rate}pps.csv" >> "$CSV_FILE"
-                            rm "results_${net_type}_${num_nodes}n_${num_flows}f_${pkt_rate}pps.csv"
+                        # Extract simulator row from stdout log (format: CSV_ROW,...)
+                        csv_row=$(grep '^CSV_ROW,' /tmp/sim.log | tail -n 1 | sed 's/^CSV_ROW,//')
+                        if [ -n "$csv_row" ]; then
+                            echo "$csv_row" >> "$CSV_FILE"
                             echo -e "${GREEN}✓${NC}"
                         else
                             echo -e "${YELLOW}⚠${NC} (no output)"
@@ -115,7 +121,7 @@ echo ""
 # Generate plots
 echo -e "${BLUE}Generating plots...${NC}"
 
-python3 << 'MATPLOTLIB_SCRIPT'
+"$PYTHON_BIN" << 'MATPLOTLIB_SCRIPT'
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -136,7 +142,7 @@ sns.set_style("whitegrid")
 # 1. Throughput vs Nodes (by network type)
 fig, ax = plt.subplots(figsize=(12, 6))
 for net_type in df['NetworkType'].unique():
-    data = df[df['NetworkType'] == net_type].groupby('NumNodes')['Throughput(Mbps)'].mean()
+    data = df[df['NetworkType'] == net_type].groupby('NumNodes')['ThroughputMbps'].mean()
     ax.plot(data.index, data.values, marker='o', label=net_type.capitalize(), linewidth=2)
 
 ax.set_xlabel('Number of Nodes')
@@ -152,7 +158,7 @@ print("  ✓ Throughput vs Nodes")
 # 2. Delay vs Packet Rate
 fig, ax = plt.subplots(figsize=(12, 6))
 for net_type in df['NetworkType'].unique():
-    data = df[df['NetworkType'] == net_type].groupby('PktPerSec')['Delay(ms)'].mean()
+    data = df[df['NetworkType'] == net_type].groupby('PktPerSec')['DelayMs'].mean()
     ax.plot(data.index, data.values, marker='s', label=net_type.capitalize(), linewidth=2)
 
 ax.set_xlabel('Packets Per Second')
@@ -202,7 +208,7 @@ print("  ✓ DRR vs Flows")
 # 5. Heatmap : Throughput by Nodes and Flows (Wired)
 wired_df = df[df['NetworkType'] == 'wired']
 if not wired_df.empty:
-    pivot = wired_df.pivot_table(values='Throughput(Mbps)', index='NumNodes', columns='NumFlows', aggfunc='mean')
+    pivot = wired_df.pivot_table(values='ThroughputMbps', index='NumNodes', columns='NumFlows', aggfunc='mean')
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.heatmap(pivot, annot=True, fmt='.2f', cmap='YlGn', ax=ax, cbar_kws={'label': 'Throughput (Mbps)'})
     ax.set_title('Throughput Heatmap - Wired Network')
@@ -214,7 +220,7 @@ if not wired_df.empty:
 # 6. Heatmap: Throughput by Nodes and Flows (Wireless)
 wireless_df = df[df['NetworkType'] == 'wireless']
 if not wireless_df.empty:
-    pivot = wireless_df.pivot_table(values='Throughput(Mbps)', index='NumNodes', columns='NumFlows', aggfunc='mean')
+    pivot = wireless_df.pivot_table(values='ThroughputMbps', index='NumNodes', columns='NumFlows', aggfunc='mean')
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.heatmap(pivot, annot=True, fmt='.2f', cmap='YlGn', ax=ax, cbar_kws={'label': 'Throughput (Mbps)'})
     ax.set_title('Throughput Heatmap - Wireless Network')
@@ -227,16 +233,16 @@ if not wireless_df.empty:
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
 # Throughput
-axes[0, 0].boxplot([df[df['NetworkType'] == 'wired']['Throughput(Mbps)'],
-                     df[df['NetworkType'] == 'wireless']['Throughput(Mbps)']],
+axes[0, 0].boxplot([df[df['NetworkType'] == 'wired']['ThroughputMbps'],
+                     df[df['NetworkType'] == 'wireless']['ThroughputMbps']],
                     labels=['Wired', 'Wireless'])
 axes[0, 0].set_ylabel('Throughput (Mbps)')
 axes[0, 0].set_title('Throughput Distribution')
 axes[0, 0].grid(True, alpha=0.3)
 
 # Delay
-axes[0, 1].boxplot([df[df['NetworkType'] == 'wired']['Delay(ms)'],
-                     df[df['NetworkType'] == 'wireless']['Delay(ms)']],
+axes[0, 1].boxplot([df[df['NetworkType'] == 'wired']['DelayMs'],
+                     df[df['NetworkType'] == 'wireless']['DelayMs']],
                     labels=['Wired', 'Wireless'])
 axes[0, 1].set_ylabel('Delay (ms)')
 axes[0, 1].set_title('Delay Distribution')

@@ -95,7 +95,7 @@ for network in "${NETWORKS[@]}"; do
         # EXPERIMENT 1: Vary Number of Nodes
         echo "  [EXP 1] Varying Number of Nodes..."
         for nodes in "${NODES[@]}"; do
-            ((SIM_COUNT++))
+            ((SIM_COUNT+=1))
             echo -ne "    [$SIM_COUNT/$TOTAL_SIMS] nodes=$nodes... "
 
             timeout 120 ./ns3 run \
@@ -131,7 +131,7 @@ for network in "${NETWORKS[@]}"; do
         # EXPERIMENT 2: Vary Number of Flows
         echo "  [EXP 2] Varying Number of Flows..."
         for flows in "${FLOWS[@]}"; do
-            ((SIM_COUNT++))
+            ((SIM_COUNT+=1))
             echo -ne "    [$SIM_COUNT/$TOTAL_SIMS] flows=$flows... "
 
             timeout 120 ./ns3 run \
@@ -165,7 +165,7 @@ for network in "${NETWORKS[@]}"; do
         # EXPERIMENT 3: Vary Packet Rate
         echo "  [EXP 3] Varying Packet Rate..."
         for pkt_rate in "${PKT_RATES[@]}"; do
-            ((SIM_COUNT++))
+            ((SIM_COUNT+=1))
             echo -ne "    [$SIM_COUNT/$TOTAL_SIMS] pkt_rate=$pkt_rate... "
 
             timeout 120 ./ns3 run \
@@ -201,7 +201,7 @@ for network in "${NETWORKS[@]}"; do
             # EXPERIMENT 4: Vary Speed (Wireless)
             echo "  [EXP 4] Varying Node Speed (Wireless Mobile)..."
             for speed in "${SPEEDS[@]}"; do
-                ((SIM_COUNT++))
+                ((SIM_COUNT+=1))
                 echo -ne "    [$SIM_COUNT/$TOTAL_SIMS] speed=${speed}m/s... "
 
                 timeout 120 ./ns3 run \
@@ -235,7 +235,7 @@ for network in "${NETWORKS[@]}"; do
             # EXPERIMENT 4: Vary Coverage (Wired)
             echo "  [EXP 4] Varying Coverage Area (Wired Static)..."
             for coverage in "${COVERAGE[@]}"; do
-                ((SIM_COUNT++))
+                ((SIM_COUNT+=1))
                 echo -ne "    [$SIM_COUNT/$TOTAL_SIMS] coverage=${coverage}x... "
 
                 timeout 120 ./ns3 run \
