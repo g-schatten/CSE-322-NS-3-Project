@@ -68,7 +68,7 @@ Optional tool:
 ### 1) Clone and enter the project
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/g-schatten/CSE-322-NS-3-Project.git
 cd CSE-322-NS-3-Project
 ```
 
