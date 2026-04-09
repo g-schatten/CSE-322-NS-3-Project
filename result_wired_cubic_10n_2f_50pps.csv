@@ -1,0 +1,2 @@
+Network,Algorithm,NumNodes,NumFlows,PktPerSec,NodeSpeed,Coverage,Throughput(Mbps),Delay(ms),PDR,DRR,Energy(J)
+wired,cubic,10,2,50,10,500,0.406965,5671.674530,1.000000,0.000000,0.000000

@@ -1,0 +1,3 @@
+NetworkType,NumNodes,NumFlows,PktPerSec,NodeSpeed,CoverageArea,Throughput(Mbps),Delay(ms),PDR,DRR
+wired,60,30,300,5,250,0.0268235,3330.15,0.00920596,0.990794
+wired,80,40,400,5,250,0.0202562,2133.18,0.00459148,0.995409
